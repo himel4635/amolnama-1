@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 intents = discord.Intents.default()
 intents.voice_states = True
@@ -18,7 +18,7 @@ voice_history = []
 user_sessions = {}   # {member_id: datetime}
 user_totals = {}     # {member_id: total_seconds}
 
-# 🔧 Replace this with the ID of your dedicated text channel
+# 🔧 Replace this with your dedicated text channel ID
 LOG_CHANNEL_ID = 1422626536481226845
 
 
@@ -47,11 +47,10 @@ def save_data():
 
 
 def timestamp():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def format_duration(seconds: int) -> str:
-    """Convert seconds to human-readable format"""
     mins, secs = divmod(seconds, 60)
     hours, mins = divmod(mins, 60)
     if hours > 0:
@@ -68,7 +67,7 @@ async def send_log(channel, member, action, color, description):
         title=f"🎧 Voice Update: {action}",
         description=description,
         color=color,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)  # ✅ timezone-aware
     )
     embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
     await channel.send(embed=embed)
@@ -94,7 +93,7 @@ async def on_voice_state_update(member, before, after):
         log = f"[{timestamp()}] 🔊 {member.display_name} joined {after.channel.name}"
         description = f"🔊 **{member.mention}** joined **{after.channel.name}**"
         color = discord.Color.green()
-        user_sessions[member.id] = datetime.utcnow()
+        user_sessions[member.id] = datetime.now(timezone.utc)
 
     # User left
     elif before.channel is not None and after.channel is None:
@@ -102,8 +101,7 @@ async def on_voice_state_update(member, before, after):
         join_time = user_sessions.pop(member.id, None)
         duration_text = ""
         if join_time:
-            duration = (datetime.utcnow() - join_time).total_seconds()
-            # Update totals
+            duration = (datetime.now(timezone.utc) - join_time).total_seconds()
             user_totals[str(member.id)] = user_totals.get(str(member.id), 0) + int(duration)
             duration_text = f" (Stayed: {format_duration(int(duration))})"
 
@@ -117,7 +115,7 @@ async def on_voice_state_update(member, before, after):
         log = f"[{timestamp()}] ➡️ {member.display_name} moved from {before.channel.name} to {after.channel.name}"
         description = f"➡️ **{member.mention}** moved from **{before.channel.name}** → **{after.channel.name}**"
         color = discord.Color.orange()
-        user_sessions[member.id] = datetime.utcnow()  # Reset timer for new channel
+        user_sessions[member.id] = datetime.now(timezone.utc)  # Reset join time for new channel
 
     if log:
         voice_history.append(log)
@@ -155,7 +153,7 @@ async def vcstats(ctx, member: discord.Member = None):
     # If user is currently in VC, add live session time
     if member.id in user_sessions:
         join_time = user_sessions[member.id]
-        total_seconds += int((datetime.utcnow() - join_time).total_seconds())
+        total_seconds += int((datetime.now(timezone.utc) - join_time).total_seconds())
 
     embed = discord.Embed(
         title=f"📊 Voice Channel Stats for {member.display_name}",
@@ -167,5 +165,5 @@ async def vcstats(ctx, member: discord.Member = None):
 
 
 # ------------------ Run ------------------
+import os
 bot.run(os.getenv("DISCORD_TOKEN"))
-
