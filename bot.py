@@ -19,7 +19,7 @@ user_sessions = {}   # {member_id: datetime}
 user_totals = {}     # {member_id: total_seconds}
 
 # 🔧 Replace this with the ID of your dedicated text channel
-LOG_CHANNEL_ID = 123456789012345678
+LOG_CHANNEL_ID = 1422626536481226845
 
 
 # ------------------ Helper Functions ------------------
